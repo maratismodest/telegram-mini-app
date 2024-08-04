@@ -1,42 +1,93 @@
-'use client';
-import WebApp from "@twa-dev/sdk";
-import {useEffect, useState} from "react";
-
-// Define the interface for user data
-interface UserData {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  language_code: string;
-  is_premium?: boolean;
-}
+'use client'
+import Script from "next/script";
+import Image from "next/image";
+import {useEffect, useRef, useState} from "react";
 
 export default function Home() {
-  const [userData, setUserData] = useState<UserData | null>(null)
 
-  useEffect(() => {
-    if (WebApp.initDataUnsafe.user) {
-      setUserData(WebApp.initDataUnsafe.user as UserData)
+    const circle = useRef<HTMLButtonElement>(null);
+    const score = useRef<HTMLHeadingElement>(null)
+    const [image, setImage] = useState<string>('')
+
+    const handleImage = () => {
+        setImage(getScore() < 50 ? '/assets/frog.png' : '/assets/lizard.png')
     }
-  }, [])
-  return (
-    <main className="p-4">
-      {userData ? (
+
+    useEffect(() => {
+        setScore(getScore())
+        handleImage()
+    }, []);
+
+
+    function setScore(value: number) {
+        if (score.current) {
+            localStorage.setItem('score', value.toString())
+            score.current.textContent = value.toString()
+        }
+    }
+
+
+    function getScore() {
+        return Number(localStorage.getItem('score')) ?? 0
+    }
+
+    function addOne() {
+        setScore(getScore() + 1)
+        handleImage()
+    }
+
+    const onClick = (event: any) => {
+        const rect = circle.current?.getBoundingClientRect() as DOMRect
+        const offfsetX = event.clientX - rect.left - rect.width / 2
+        const offfsetY = event.clientY - rect.top - rect.height / 2
+        const DEG = 40
+
+        const tiltX = (offfsetY / rect.height) * DEG
+        const tiltY = (offfsetX / rect.width) * -DEG
+
+        circle.current?.style.setProperty('--tiltX', `${tiltX}deg`)
+        circle.current?.style.setProperty('--tiltY', `${tiltY}deg`)
+
+        setTimeout(() => {
+            circle.current?.style.setProperty('--tiltX', `0deg`)
+            circle.current?.style.setProperty('--tiltY', `0deg`)
+        }, 300)
+
+        const plusOne = document.createElement('div')
+        plusOne.classList.add('plus-one')
+        plusOne.textContent = '+1'
+        plusOne.style.left = `${event.clientX - rect.left}px`
+        plusOne.style.top = `${event.clientY - rect.top}px`
+
+        // @ts-ignore
+        circle.current.parentElement.appendChild(plusOne)
+
+        addOne()
+
+        setTimeout(() => {
+            plusOne.remove()
+        }, 2000)
+    }
+
+
+    return (
         <>
-          <h1 className="text-2xl font-bold mb-4">User Data</h1>
-          <ul>
-            <li>ID: {userData.id}</li>
-            <li>First Name: {userData.first_name}</li>
-            <li>Last Name: {userData.last_name || 'N/A'}</li>
-            <li>Username: {userData.username || 'N/A'}</li>
-            <li>Language Code: {userData.language_code}</li>
-            <li>Is Premium: {userData.is_premium ? 'Yes' : 'No'}</li>
-          </ul>
+            <main className="p-4">
+                <div className="game relative">
+                    <div className="header">
+                        <Image src="/assets/coin.png" alt="coin" width={50} height={50}/>
+                        <h2 className="score" id="score" ref={score}>0</h2>
+                    </div>
+
+                    <button className="circle" onClick={onClick} ref={circle}>
+                        <Image id="circle" src={image} alt="frog" width={200} height={200}
+                               draggable={false}/>
+                    </button>
+
+                </div>
+            </main>
+            <Script src='/scripts/app.js' strategy='afterInteractive'/>
         </>
-      ) : (
-        <div>Loading...</div>
-      )}
-    </main>
-  );
+
+    );
 }
